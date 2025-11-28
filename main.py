@@ -19,8 +19,10 @@ import time
 import threading
 
 # --- Variáveis Globais de Configuração ---
-NUMERO_MAXIMO = 75
-VERSAO_SISTEMA = "v6.2.0" # Versão com restrição de geração e backup [MODIFICADO] [Versão 12]
+# O NUMERO_MAXIMO agora é uma variável de instância na classe BingoSystem, mas mantemos o default
+DEFAULT_NUMERO_MAXIMO = 75 
+DEFAULT_TOTAL_CARTELAS = 126
+VERSAO_SISTEMA = "v7.0.0 Plus" # Versão Plus [MODIFICADO]
 
 # --- Sistema de Logs ---
 LOG_FILE = 'system.log'
@@ -41,7 +43,7 @@ def log_message(level, message):
     except Exception as e:
         print(f"Erro ao escrever log em arquivo: {e}")
 
-# --- Classe Tooltip Simples ---
+# --- Classe Tooltip Simples (Mantida) ---
 class ToolTip:
     def __init__(self, widget, text):
         self.widget = widget
@@ -97,9 +99,10 @@ class ToolTip:
             self.tipwindow.destroy()
         self.tipwindow = None
 
-# --- Classe LoadingWindow ---
+# --- Classe LoadingWindow (Mantida) ---
 class LoadingWindow:
     """Janela de carregamento para processos demorados"""
+    
     def __init__(self, parent, title="Processando..."):
         self.parent = parent
         self.window = ctk.CTkToplevel(parent)
@@ -143,6 +146,7 @@ class LoadingWindow:
 class BingoSystem:
     def __init__(self):
         log_message("INFO", "Iniciando Sistema de Bingo...")
+        
         self.root = CTk()
         self.root.title(f"Sistema de Bingo Premium - Danilo Leão ({VERSAO_SISTEMA})")
         self.root.geometry("1000x700")
@@ -151,9 +155,11 @@ class BingoSystem:
         # 🚀 CORREÇÃO: Maximiza a janela ao iniciar
         self.root.state('zoomed')
 
-        ctk.set_appearance_mode("Dark")
+        # 🎨 NOVAS CORES: Fundo Branco (Light) e tema padrão (blue) [MODIFICADO]
+        ctk.set_appearance_mode("Light")
         ctk.set_default_color_theme("blue")
         
+        # --- Variáveis do Estado do Concurso ---
         self.cartelas = {}
         self.compradores = {}
         self.numeros_sorteados = set()
@@ -164,6 +170,10 @@ class BingoSystem:
         self.concurso_atual = "Principal"  
         self.cartelas_geradas_uma_vez = False # [ADICIONADO] Flag para restrição de geração
         
+        # --- NOVAS VARIÁVEIS DE CONFIGURAÇÃO ---
+        self.numero_maximo = DEFAULT_NUMERO_MAXIMO
+        self.total_cartelas = DEFAULT_TOTAL_CARTELAS
+      
         self.setup_directories()
         self.load_data()
         
@@ -183,6 +193,8 @@ class BingoSystem:
 
         
     # --- Métodos de Configuração e Dados ---
+    # ... (center_window, setup_directories, load_data, save_data - Mantidos, com ajustes na load/save para as novas variáveis)
+    
     def center_window(self):
         # Esta função de centralizar será ignorada pelo state('zoomed'),
         # mas é mantida por segurança caso o state seja alterado.
@@ -209,7 +221,7 @@ class BingoSystem:
             if os.path.exists('data/cartelas.json'):
                 with open('data/cartelas.json', 'r', encoding='utf-8') as f:
                     self.cartelas = json.load(f)
-                    
+           
             if os.path.exists('data/sorteio.json'):
                 with open('data/sorteio.json', 'r', encoding='utf-8') as f:
                     data = json.load(f)
@@ -222,12 +234,15 @@ class BingoSystem:
                 with open('data/concursos.json', 'r', encoding='utf-8') as f:
                     self.concursos = json.load(f)
             
-            # [ADICIONADO] Carrega a flag de restrição de geração
+            # [ADICIONADO] Carrega a flag de restrição de geração e as NOVAS variáveis
             if os.path.exists('data/meta.json'):
                 with open('data/meta.json', 'r', encoding='utf-8') as f:
                     meta_data = json.load(f)
                     self.cartelas_geradas_uma_vez = meta_data.get('cartelas_geradas_uma_vez', False)
-                    log_message("INFO", f"Meta data carregada: cartelas_geradas_uma_vez={self.cartelas_geradas_uma_vez}")
+                    # Carrega as novas configurações de geração [ADICIONADO]
+                    self.numero_maximo = meta_data.get('numero_maximo', DEFAULT_NUMERO_MAXIMO)
+                    self.total_cartelas = meta_data.get('total_cartelas', DEFAULT_TOTAL_CARTELAS)
+                    log_message("INFO", f"Meta data carregada: cartelas_geradas_uma_vez={self.cartelas_geradas_uma_vez}, Max={self.numero_maximo}, Total={self.total_cartelas}")
             
             log_message("INFO", "Dados carregados com sucesso.")
                     
@@ -238,7 +253,7 @@ class BingoSystem:
         try:
             with open('data/compradores.json', 'w', encoding='utf-8') as f:
                 json.dump(self.compradores, f, ensure_ascii=False, indent=2)
-                
+               
             with open('data/cartelas.json', 'w', encoding='utf-8') as f:
                 json.dump(self.cartelas, f, ensure_ascii=False, indent=2)
                 
@@ -254,9 +269,11 @@ class BingoSystem:
             with open('data/concursos.json', 'w', encoding='utf-8') as f:
                 json.dump(self.concursos, f, ensure_ascii=False, indent=2)
 
-            # [ADICIONADO] Salva a flag de restrição de geração
+            # [ADICIONADO] Salva a flag de restrição de geração e as NOVAS variáveis
             meta_data = {
-                'cartelas_geradas_uma_vez': self.cartelas_geradas_uma_vez
+                'cartelas_geradas_uma_vez': self.cartelas_geradas_uma_vez,
+                'numero_maximo': self.numero_maximo,
+                'total_cartelas': self.total_cartelas
             }
             with open('data/meta.json', 'w', encoding='utf-8') as f:
                 json.dump(meta_data, f, ensure_ascii=False, indent=2)
@@ -266,7 +283,7 @@ class BingoSystem:
         except Exception as e:
             log_message("ERROR", f"Erro ao salvar dados: {e}")
 
-    # --- Métodos de UI (Integração e Layout) ---
+    # --- Métodos de UI (Integração e Layout - Mantidos) ---
     def setup_ui(self):
         self.center_window()
         self.main_frame = CTkFrame(self.root)
@@ -274,7 +291,7 @@ class BingoSystem:
         self.create_header()
         self.create_tabs()
         self.create_footer()
-        
+    
     def create_header(self):
         header_frame = CTkFrame(self.main_frame, height=80)
         header_frame.pack(fill="x", padx=10, pady=(0, 10))
@@ -356,12 +373,11 @@ class BingoSystem:
                 
     def atualizar_status(self):
         cartelas_vendidas = sum(1 for c in self.cartelas.values() if c.get('comprador_id'))
-        # Atualiza a exibição da cartela vencedora para "Não" se for None
         
         status_text = (f"Concurso: {self.concurso_atual} | "
                        f"Cartelas: {len(self.cartelas)} ({cartelas_vendidas} vendidas) | "
                        f"Compradores: {len(self.compradores)} | "
-                       f"Sorteados: {len(self.numeros_sorteados)}/{NUMERO_MAXIMO}") 
+                       f"Sorteados: {len(self.numeros_sorteados)}/{self.numero_maximo}") # [MODIFICADO]
         self.status_label.configure(text=status_text)
 
     def add_tooltip_and_status(self, widget, text):
@@ -435,7 +451,7 @@ class BingoSystem:
         stats_data = [
             ("📊 Total de Cartelas", len(self.cartelas), "#4CAF50"),
             ("👥 Compradores", len(self.compradores), "#2196F3"),
-            ("🎲 Números Sorteados", len(self.numeros_sorteados), "#FF9800"),
+            ("🎲 Números Sorteados", f"{len(self.numeros_sorteados)}/{self.numero_maximo}", "#FF9800"), # [MODIFICADO]
             ("🏆 Cartela Vencedora", "Definida" if self.cartela_vencedora else "Não", "#F44336")
         ]
         
@@ -443,7 +459,7 @@ class BingoSystem:
             stat_card = CTkFrame(stats_frame, width=200, height=100)
             stat_card.pack(side="left", expand=True, padx=10)
             stat_card.pack_propagate(False)
-            
+        
             CTkLabel(stat_card, text=title, font=("Arial", 12, "bold")).pack(pady=(15, 5))
             CTkLabel(stat_card, text=str(value), font=("Arial", 18, "bold"), 
                      text_color=color).pack(pady=5)
@@ -456,7 +472,8 @@ class BingoSystem:
         
         # Ações Rápidas com Tooltips
         quick_actions_info = [
-            ("Gerar 126 Cartelas", self.gerar_cartelas_com_loading, "Gera 126 cartelas únicas para este concurso."),
+            # Botão modificado para abrir a aba Cartelas para configuração
+            (f"Gerar Cartelas ({self.total_cartelas} / Max {self.numero_maximo})", self.show_cartelas, "Define e Gera o número de cartelas e o número máximo de sorteio."), 
             ("Novo Comprador", lambda: self.show_compradores(), "Abre a aba para cadastrar novos compradores."),
             ("Sortear Número", self.sortear_numero, "Sorteia o próximo número automaticamente."),
             ("Exportar Relatórios", self.exportar_excel, "Exporta todos os dados (cartelas e compradores) para Excel."),
@@ -484,11 +501,11 @@ class BingoSystem:
             # Controle de estado: Desabilita tudo exceto Gerar Cartelas e Novo Concurso
             state = "normal"
             # [MODIFICADO] Restringe o botão 'Gerar Cartelas' após a primeira vez
-            if text == "Gerar 126 Cartelas" and self.cartelas_geradas_uma_vez:
+            if text.startswith("Gerar Cartelas") and self.cartelas_geradas_uma_vez:
                 btn.configure(text="Cartelas Geradas (Bloqueado)", state="disabled", fg_color="#F44336", hover_color="#d32f2f")
                 continue
             
-            if text not in ["Gerar 126 Cartelas", "🔄 Novo Concurso"] and not self.cartelas_geradas:
+            if not text.startswith("Gerar Cartelas") and text not in ["🔄 Novo Concurso"] and not self.cartelas_geradas:
                  state = "disabled"
 
             btn.configure(state=state)
@@ -498,9 +515,9 @@ class BingoSystem:
         """Exibe a janela com o fluxo de trabalho recomendado."""
         help_text = (
             "🚀 FLUXO DE TRABALHO RECOMENDADO:\n\n"
-            "1. **GERAR CARTELAS** (Aba Cartelas ou Início)\n"
-            "   - Essencial! Define a cartela base para o sistema.\n"
-            "   - *Esta ação só pode ser feita UMA VEZ por concurso.* \n\n" # [MODIFICADO]
+            "1. **CONFIGURAR E GERAR CARTELAS** (Aba Cartelas)\n" # [MODIFICADO]
+            "   - Essencial! Define a base de cartelas e o máximo de números (ex: 90).\n"
+            "   - *Esta ação só pode ser feita UMA VEZ por concurso.* \n\n" 
             "2. **EXPORTAR PDF** (Aba Cartelas)\n"
             "   - Gere o PDF para impressão na gráfica.\n\n"
             "3. **CADASTRAR COMPRADORES** (Aba Compradores)\n"
@@ -509,7 +526,7 @@ class BingoSystem:
             "   - Comece a sortear os números (automático ou manual).\n\n"
             "5. **VERIFICAR VENCEDOR** (Aba Sorteio)\n"
             "   - Confirme o vencedor ao final do sorteio.\n\n"
-            "6. **SALVAR CONCURSO / BACKUP** (Aba Concursos)\n" # [MODIFICADO]
+            "6. **SALVAR CONCURSO / BACKUP** (Aba Concursos)\n" 
             "   - Salve o estado atual para consulta futura ou crie um backup externo."
         )
 
@@ -530,6 +547,7 @@ class BingoSystem:
         CTkButton(janela, text="Entendi", command=janela.destroy).pack(pady=10)
         
     def show_compradores(self):
+        # ... (Mantido, com ajuste no placeholder do número máximo)
         self.clear_content_frame()
         self.highlight_tab(1)
         
@@ -561,7 +579,7 @@ class BingoSystem:
                 entry.pack(side="left", padx=10)
                 entry.insert(0, "1")
             else:
-                entry = CTkEntry(row, placeholder_text=f"Digite o {label.lower()}")
+                entry = CTkEntry(row, placeholder_text=f"Digite o {label.lower().replace(':', '')}")
                 entry.pack(side="left", fill="x", expand=True, padx=10)
             self.entries[key] = entry
         
@@ -576,7 +594,7 @@ class BingoSystem:
         cartelas_entry.pack(side="left", fill="x", expand=True, padx=10)
         
         btn_disp = CTkButton(cartelas_frame, text="📋 Ver Disponíveis", 
-                  command=self.mostrar_cartelas_disponiveis, width=120)
+                             command=self.mostrar_cartelas_disponiveis, width=120)
         btn_disp.pack(side="left", padx=5)
         self.add_tooltip_and_status(btn_disp, "Lista as IDs das cartelas que ainda não foram vendidas.")
         
@@ -584,20 +602,20 @@ class BingoSystem:
         btn_frame.pack(fill="x", pady=15, padx=20)
         
         btn_cadastrar = CTkButton(btn_frame, text="📝 Cadastrar Comprador", 
-                  command=self.cadastrar_comprador, 
-                  fg_color="#4CAF50", hover_color="#45a049")
+                                  command=self.cadastrar_comprador, 
+                                  fg_color="#4CAF50", hover_color="#45a049")
         btn_cadastrar.pack(side="left", padx=5)
         self.add_tooltip_and_status(btn_cadastrar, "Salva o comprador e atribui as cartelas indicadas.")
 
         btn_limpar = CTkButton(btn_frame, text="🔄 Limpar Campos", 
-                  command=self.limpar_campos)
+                                  command=self.limpar_campos)
         btn_limpar.pack(side="left", padx=5)
         self.add_tooltip_and_status(btn_limpar, "Limpa todos os campos do formulário.")
         
         # NOVO BOTÃO DE AÇÃO
         btn_desvincular = CTkButton(btn_frame, text="🚫 Desvincular Cartela", 
-                  command=self.desvincular_cartela,
-                  fg_color="#F44336", hover_color="#d32f2f") # Adicionado
+                                  command=self.desvincular_cartela,
+                                  fg_color="#F44336", hover_color="#d32f2f") # Adicionado
         btn_desvincular.pack(side="right", padx=5) 
         self.add_tooltip_and_status(btn_desvincular, "Desvincula uma cartela vendida, tornando-a livre novamente.")
 
@@ -624,31 +642,57 @@ class BingoSystem:
         content = CTkFrame(self.content_frame)
         content.pack(fill="both", expand=True, padx=20, pady=20)
         
-        CTkLabel(content, text="Gerenciamento de Cartelas", 
+        CTkLabel(content, text="Gerenciamento e Geração de Cartelas (Versão Plus)", # [MODIFICADO]
                  font=("Arial", 18, "bold")).pack(pady=10)
         
+        # --- NOVO: FRAME DE CONFIGURAÇÃO DE GERAÇÃO ---
+        config_frame = CTkFrame(content)
+        config_frame.pack(fill="x", pady=10)
+        
+        CTkLabel(config_frame, text="Configurações de Geração:", font=("Arial", 14, "bold")).pack(pady=(5, 0))
+        
+        input_frame = CTkFrame(config_frame)
+        input_frame.pack(pady=10, padx=10, fill="x")
+
+        # 1. Campo para definir quantas cartelas deseja gerar [NOVO]
+        CTkLabel(input_frame, text="Total de Cartelas a Gerar:", width=180, anchor="w").pack(side="left", padx=(10, 5))
+        self.entry_total_cartelas = CTkEntry(input_frame, placeholder_text=str(DEFAULT_TOTAL_CARTELAS), width=100)
+        self.entry_total_cartelas.pack(side="left", padx=(0, 20))
+        self.entry_total_cartelas.insert(0, str(self.total_cartelas))
+        ToolTip(self.entry_total_cartelas, "Defina quantas cartelas únicas o programa deve tentar gerar (Ex: 50, 100, 126).")
+        
+        # 2. Campo para definir quantos números serão sorteados (o máximo) [NOVO]
+        CTkLabel(input_frame, text="Número Máximo do Sorteio (BINGO):", width=250, anchor="w").pack(side="left", padx=(10, 5))
+        self.entry_num_max = CTkEntry(input_frame, placeholder_text=str(DEFAULT_NUMERO_MAXIMO), width=100)
+        self.entry_num_max.pack(side="left", padx=(0, 10))
+        self.entry_num_max.insert(0, str(self.numero_maximo))
+        ToolTip(self.entry_num_max, "Defina o número máximo do sorteio (Ex: 75, 90). As cartelas serão geradas com 25 números nesse range.")
+        
+        # -----------------------------------------------------
+
         controls_frame = CTkFrame(content)
         controls_frame.pack(fill="x", pady=10)
         
-        btn_gerar = CTkButton(controls_frame, text="🎫 Gerar 126 Cartelas", 
-                  command=self.gerar_cartelas_com_loading,
-                  fg_color="#2196F3", hover_color="#1976D2",
-                  width=200, height=40)
+        # Botão de Geração agora chama um novo método de validação
+        btn_gerar = CTkButton(controls_frame, text="🎫 GERAR CARTELAS ÚNICAS", 
+                              command=self.validar_e_gerar_cartelas, # [MODIFICADO]
+                              fg_color="#4CAF50", hover_color="#45a049",
+                              width=250, height=40)
         btn_gerar.pack(side="left", padx=5)
-        self.add_tooltip_and_status(btn_gerar, "Gera 126 cartelas únicas, limpando as antigas.")
+        self.add_tooltip_and_status(btn_gerar, "Define as configurações e gera as cartelas únicas, limpando as antigas.")
 
         btn_pdf = CTkButton(controls_frame, text="📄 Exportar PDF (Gráfica)", 
-                  command=self.exportar_pdf)
+                            command=self.exportar_pdf)
         btn_pdf.pack(side="left", padx=5)
         self.add_tooltip_and_status(btn_pdf, "Cria um PDF pronto para impressão (sem marcações).")
 
         btn_excel = CTkButton(controls_frame, text="📊 Exportar Excel", 
-                  command=self.exportar_excel)
+                              command=self.exportar_excel)
         btn_excel.pack(side="left", padx=5)
         self.add_tooltip_and_status(btn_excel, "Exporta cartelas, compradores e sorteio para um arquivo Excel.")
 
         btn_visualizar = CTkButton(controls_frame, text="👁 Visualizar Cartela", 
-                  command=self.visualizar_cartela)
+                                   command=self.visualizar_cartela)
         btn_visualizar.pack(side="left", padx=5)
         self.add_tooltip_and_status(btn_visualizar, "Busca e exibe o estado de uma cartela específica.")
         
@@ -660,8 +704,13 @@ class BingoSystem:
         # [MODIFICADO] Restringe o botão 'Gerar Cartelas' após a primeira vez
         if self.cartelas_geradas_uma_vez:
             btn_gerar.configure(text="Cartelas Geradas (Bloqueado)", state="disabled", fg_color="#F44336", hover_color="#d32f2f")
+            # Desabilita as entries de configuração se já gerado
+            self.entry_total_cartelas.configure(state="disabled")
+            self.entry_num_max.configure(state="disabled")
         else:
             btn_gerar.configure(state="normal")
+            self.entry_total_cartelas.configure(state="normal")
+            self.entry_num_max.configure(state="normal")
         
         info_frame = CTkFrame(content)
         info_frame.pack(fill="both", expand=True, pady=10)
@@ -672,6 +721,7 @@ class BingoSystem:
         self.atualizar_info_cartelas()
 
     def show_sorteio(self):
+        # ... (Mantido, com ajuste no placeholder)
         self.clear_content_frame()
         self.highlight_tab(3)
         
@@ -706,35 +756,35 @@ class BingoSystem:
         
         # Botões de Sorteio
         btn_sortear = CTkButton(btn_frame, text="🎲 Sortear Automaticamente", 
-                  command=self.sortear_numero,
-                  fg_color="#FF9800", hover_color="#F57C00",
-                  height=40)
+                                command=self.sortear_numero,
+                                fg_color="#FF9800", hover_color="#F57C00",
+                                height=40)
         btn_sortear.pack(fill="x", padx=5, pady=5)
-        self.add_tooltip_and_status(btn_sortear, "Sorteia um número de 1 a 75 que ainda não saiu.")
+        self.add_tooltip_and_status(btn_sortear, f"Sorteia um número de 1 a {self.numero_maximo} que ainda não saiu.") # [MODIFICADO]
         
         manual_frame = CTkFrame(left_frame)
         manual_frame.pack(fill="x", pady=10, padx=10)
         
-        self.entry_numero_manual = CTkEntry(manual_frame, placeholder_text=f"Número (1-{NUMERO_MAXIMO})", width=100)
+        self.entry_numero_manual = CTkEntry(manual_frame, placeholder_text=f"Número (1-{self.numero_maximo})", width=100) # [MODIFICADO]
         self.entry_numero_manual.pack(side="left", fill="x", expand=True, padx=5)
         
         btn_manual = CTkButton(manual_frame, text="📝 Inserir Manual", 
-                  command=self.inserir_numero_manual, width=120)
+                               command=self.inserir_numero_manual, width=120)
         btn_manual.pack(side="left", padx=5)
         self.add_tooltip_and_status(btn_manual, "Insere um número manualmente no sorteio.")
-                      
+                
         controles_frame_2 = CTkFrame(left_frame)
         controles_frame_2.pack(fill="x", pady=10, padx=10)
 
         btn_verificar = CTkButton(controles_frame_2, text="✅ Verificar Vencedor", 
-                  command=self.verificar_vencedor,
-                  fg_color="#4CAF50", hover_color="#45a049", width=120)
+                                  command=self.verificar_vencedor,
+                                  fg_color="#4CAF50", hover_color="#45a049", width=120)
         btn_verificar.pack(side="left", padx=5, pady=5)
         self.add_tooltip_and_status(btn_verificar, "Verifica se há cartelas com 25 acertos (BINGO).")
         
         btn_reiniciar = CTkButton(controles_frame_2, text="🔄 Reiniciar Sorteio", 
-                  command=self.reiniciar_sorteio,
-                  fg_color="#F44336", hover_color="#d32f2f", width=120)
+                                  command=self.reiniciar_sorteio,
+                                  fg_color="#F44336", hover_color="#d32f2f", width=120)
         btn_reiniciar.pack(side="right", padx=5, pady=5)
         self.add_tooltip_and_status(btn_reiniciar, "Zera todos os números sorteados e acertos das cartelas.")
         
@@ -758,7 +808,7 @@ class BingoSystem:
         self.mostrar_top20_no_sorteio()
         
         # Histórico Completo de Sorteios (Agora Horizontal)
-        CTkLabel(right_frame, text=f"🔢 Histórico Completo de Sorteios (1-{NUMERO_MAXIMO})", 
+        CTkLabel(right_frame, text=f"🔢 Histórico Completo de Sorteios (1-{self.numero_maximo})", # [MODIFICADO]
                  font=("Arial", 14, "bold")).pack(pady=(10, 5))
         
         self.historico_scroll_frame = CTkScrollableFrame(right_frame, height=150, orientation="horizontal")
@@ -770,6 +820,7 @@ class BingoSystem:
         self.atualizar_historico()
 
     def show_relatorios(self):
+        # ... (Mantido)
         self.clear_content_frame()
         self.highlight_tab(4)
         
@@ -792,7 +843,7 @@ class BingoSystem:
         
         for text, command, tooltip_text in reports_info:
             btn = CTkButton(reports_frame, text=text, command=command,
-                      width=180, height=35)
+                            width=180, height=35)
             btn.pack(side="left", padx=5, pady=5)
             self.add_tooltip_and_status(btn, tooltip_text)
             
@@ -803,6 +854,7 @@ class BingoSystem:
         self.relatorios_text.pack(fill="both", expand=True, pady=10)
         
     def show_concursos(self):
+        # ... (Mantido)
         self.clear_content_frame()
         self.highlight_tab(5)
         
@@ -817,7 +869,7 @@ class BingoSystem:
 
         # Botões de Concursos com Tooltips
         btn_novo = CTkButton(controls_frame_concursos, text="➕ Novo Concurso", command=self.novo_concurso_dialog,
-                  fg_color="#4CAF50", hover_color="#45a049")
+                             fg_color="#4CAF50", hover_color="#45a049")
         btn_novo.pack(side="left", padx=5)
         self.add_tooltip_and_status(btn_novo, "Inicia um novo concurso limpo, salvando o atual (opcional).")
 
@@ -830,7 +882,7 @@ class BingoSystem:
         self.add_tooltip_and_status(btn_carregar, "Carrega um concurso salvo, substituindo o atual.")
 
         btn_excluir = CTkButton(controls_frame_concursos, text="🗑️ Excluir Concurso", command=self.excluir_concurso_dialog,
-                  fg_color="#F44336", hover_color="#d32f2f")
+                                  fg_color="#F44336", hover_color="#d32f2f")
         btn_excluir.pack(side="left", padx=5)
         self.add_tooltip_and_status(btn_excluir, "Exclui permanentemente um concurso salvo (com confirmação).")
 
@@ -850,7 +902,7 @@ class BingoSystem:
         self.add_tooltip_and_status(btn_restaurar, "Carrega dados de um arquivo de backup, sobrescrevendo o concurso atual.")
 
         btn_limpar_tudo = CTkButton(controls_frame_backup, text="💣 Limpar Tudo", command=self.limpar_tudo_definitivo,
-                  fg_color="#8B0000", hover_color="#B22222") # Botão de Reset Completo
+                                  fg_color="#8B0000", hover_color="#B22222") # Botão de Reset Completo
         btn_limpar_tudo.pack(side="right", padx=5)
         self.add_tooltip_and_status(btn_limpar_tudo, "RESSETA o sistema por completo (perda total de dados).")
 
@@ -863,27 +915,56 @@ class BingoSystem:
         
         self.atualizar_lista_concursos()
 
-    # --- Métodos de Cartelas ---
+    # --- Métodos de Cartelas (MODIFICADOS) ---
     
-    def gerar_cartela(self):
-        # Alterado o range para 1 a NUMERO_MAXIMO (75)
-        return sorted(random.sample(range(1, NUMERO_MAXIMO + 1), 25))
-
-    def gerar_cartelas_com_loading(self):
-        # [MODIFICADO] Restrição de geração
+    # [NOVO] Método de validação antes da geração
+    def validar_e_gerar_cartelas(self):
         if self.cartelas_geradas_uma_vez:
             messagebox.showwarning("Ação Bloqueada", 
                                    "⚠️ A geração de cartelas só pode ser realizada UMA VEZ por concurso.\n"
                                    "Para gerar novas cartelas, inicie um **Novo Concurso** (Aba Concursos).")
             return
+            
+        try:
+            total_cartelas = int(self.entry_total_cartelas.get())
+            numero_maximo = int(self.entry_num_max.get())
+        except ValueError:
+            messagebox.showerror("Erro de Entrada", "❌ Os campos de Total de Cartelas e Número Máximo devem ser números inteiros.")
+            return
+
+        if total_cartelas < 1:
+            messagebox.showerror("Erro de Geração", "❌ O total de cartelas deve ser no mínimo 1.")
+            return
+        
+        # A cartela de Bingo padrão tem 25 números.
+        if numero_maximo < 25:
+             messagebox.showerror("Erro de Geração", "❌ O número máximo do sorteio deve ser no mínimo 25 (para permitir a criação da cartela padrão de 25 números).")
+             return
+             
+        # Atualiza as variáveis de configuração
+        self.total_cartelas = total_cartelas
+        self.numero_maximo = numero_maximo
+        
+        # Inicia a geração em thread
+        self.gerar_cartelas_com_loading()
+        
+    def gerar_cartela(self):
+        # Alterado o range para 1 a self.numero_maximo [MODIFICADO]
+        return sorted(random.sample(range(1, self.numero_maximo + 1), 25))
+
+    def gerar_cartelas_com_loading(self):
+        # [MODIFICADO] Restrição de geração
+        if self.cartelas_geradas_uma_vez:
+            # Já validado no método 'validar_e_gerar_cartelas', mas mantido por segurança
+            return 
 
         if self.cartelas and not messagebox.askyesno("Confirmar Ação", 
-                                                     "⚠️ Isso irá substituir as cartelas existentes.\nDeseja continuar?"):
+                                                  "⚠️ Isso irá substituir as cartelas existentes.\nDeseja continuar?"):
             log_message("INFO", "Geração de cartelas cancelada pelo usuário.")
             return
             
-        loading = LoadingWindow(self.root, "Gerando Cartelas Únicas...")
-        log_message("INFO", "Iniciando geração de 126 cartelas únicas em thread.")
+        loading = LoadingWindow(self.root, f"Gerando {self.total_cartelas} Cartelas Únicas...") # [MODIFICADO]
+        log_message("INFO", f"Iniciando geração de {self.total_cartelas} cartelas únicas em thread (Max: {self.numero_maximo}).") # [MODIFICADO]
 
         def gerar_em_thread():
             try:
@@ -896,10 +977,20 @@ class BingoSystem:
                 self.cartela_vencedora = None 
                 
                 cartelas_geradas_sets = set()
-                total_cartelas = 126
+                total_cartelas = self.total_cartelas # [MODIFICADO]
                 i = 1
                 
+                # Definindo um limite razoável de iterações para evitar loops muito longos 
+                # (ex: 5000 iterações para 126 cartelas é mais do que o suficiente)
+                limite_iteracoes = total_cartelas * 20 
+                iteracoes = 0
+                
                 while i <= total_cartelas:
+                    iteracoes += 1
+                    if iteracoes > limite_iteracoes:
+                        log_message("ERROR", f"Loop de geração atingiu limite de {limite_iteracoes} iterações. Cartelas geradas: {i-1}.")
+                        break
+
                     nova_cartela = self.gerar_cartela()
                     nova_cartela_tuple = tuple(nova_cartela)
                     
@@ -912,6 +1003,7 @@ class BingoSystem:
                             'comprador_id': None,
                             'data_criacao': datetime.now().strftime("%d/%m/%Y %H:%M")
                         }
+                
                         cartelas_geradas_sets.add(nova_cartela_tuple)
                         
                         i += 1
@@ -920,14 +1012,12 @@ class BingoSystem:
                         status = f"Cartela {i-1}/{total_cartelas} gerada..."
                         self.root.after(0, lambda p=progress, s=status: loading.update_progress(p, s))
 
-                    if len(cartelas_geradas_sets) > 5000:  
-                        log_message("WARNING", "Loop de geração atingiu limite de 5000 iterações (alta chance de repetição).")
-                        break
-
                 self.root.after(0, lambda: loading.update_progress(1.0, "Salvando dados..."))
                 self.save_data()
                 self.cartelas_geradas = True 
                 self.cartelas_geradas_uma_vez = True # [ADICIONADO] Define a flag como True após a geração
+                
+                cartelas_efetivamente_geradas = len(self.cartelas)
                 
                 self.root.after(0, lambda: [
                     loading.close(),
@@ -935,14 +1025,15 @@ class BingoSystem:
                     self.atualizar_info_cartelas(),
                     self.mostrar_top20_no_sorteio(),
                     self.update_ui_state(), 
-                    log_message("SUCCESS", f"{len(self.cartelas)} cartelas geradas. Botões dependentes habilitados. Vencedor não pré-definido."),
+                    log_message("SUCCESS", f"{cartelas_efetivamente_geradas} cartelas geradas. Botões dependentes habilitados. Vencedor não pré-definido."),
                     messagebox.showinfo("Sucesso", 
-                                        f"🎉 {len(self.cartelas)} cartelas **únicas** geradas com sucesso!\n"
+                                        f"🎉 {cartelas_efetivamente_geradas} cartelas **únicas** geradas com sucesso!\n"
+                                        f"Número Máximo do Sorteio: {self.numero_maximo}\n"
                                         f"O sistema agora está pronto para cadastrar compradores e iniciar o sorteio."),
                     # [ADICIONADO] Solicita salvamento do concurso após a 1ª geração
                     self.solicitar_salvamento_apos_geracao() 
                 ])
-                
+            
             except Exception as e:
                 log_message("ERROR", f"Erro fatal ao gerar cartelas: {str(e)}")
                 self.root.after(0, lambda: [
@@ -961,7 +1052,7 @@ class BingoSystem:
             self.show_home() # Volta para a home
 
     def atualizar_info_cartelas(self):
-        # 🛡️ Proteção contra invalid command name
+        # ... (Mantido, com atualização no texto)
         if not hasattr(self, 'cartelas_text') or not self.cartelas_text.winfo_exists(): return
         
         try:
@@ -972,7 +1063,7 @@ class BingoSystem:
                 if self.cartelas_geradas_uma_vez:
                     self.cartelas_text.insert("end", "⚠️ Nenhuma cartela atual. Inicie um Novo Concurso para gerar novamente.")
                 else:
-                    self.cartelas_text.insert("end", "⚠️ Nenhuma cartela gerada! Clique em 'Gerar 126 Cartelas'.")
+                    self.cartelas_text.insert("end", "⚠️ Nenhuma cartela gerada! Configure o **Total de Cartelas** e o **Número Máximo** acima e clique em **GERAR CARTELAS ÚNICAS**.")
                 return
                 
             cartelas_livres = sum(1 for c in self.cartelas.values() if not c.get('comprador_id'))
@@ -981,8 +1072,8 @@ class BingoSystem:
             # Atualiza a exibição da cartela vencedora
             vencedora_info = self.cartela_vencedora if self.cartela_vencedora else "Aguardando Sorteio"
 
-            self.cartelas_text.insert("end", f"ESTATÍSTICAS ATUAIS:\n")
-            self.cartelas_text.insert("end", f"Total de Cartelas: {len(self.cartelas)}\n")
+            self.cartelas_text.insert("end", f"ESTATÍSTICAS ATUAIS (Máximo Sorteio: {self.numero_maximo}):\n") # [MODIFICADO]
+            self.cartelas_text.insert("end", f"Total de Cartelas Geradas: {len(self.cartelas)}\n") # [MODIFICADO]
             self.cartelas_text.insert("end", f"Vendidas: {vendidas} | Livres: {cartelas_livres}\n")
             self.cartelas_text.insert("end", f"Cartela Vencedora: {vencedora_info}\n\n")
             
@@ -1003,6 +1094,7 @@ class BingoSystem:
 
 
     def mostrar_cartelas_disponiveis(self):
+        # ... (Mantido)
         if not self.cartelas:
             messagebox.showwarning("Atenção", "⚠️ Nenhuma cartela gerada!")
             return
@@ -1045,10 +1137,10 @@ class BingoSystem:
         texto.insert("1.0", "Disponíveis: " + ", ".join(intervalos))
         texto.configure(state="disabled")
 
-    # --- Métodos de Compradores (CORRIGIDOS) ---
+    # --- Métodos de Compradores (Mantidos) ---
     
     def cadastrar_comprador(self):
-        """Cadastra um novo comprador com múltiplas cartelas (Corrigido o erro de vírgula/parsing)"""
+        # ... (Mantido)
         if not self.cartelas_geradas:
             messagebox.showwarning("Atenção", "⚠️ Gere as cartelas primeiro!")
             return
@@ -1098,13 +1190,13 @@ class BingoSystem:
             else:
                 # Atribuição automática (por quantidade)
                 cartelas_disponiveis = [cid for cid, cartela in self.cartelas.items() 
-                                         if not cartela.get('comprador_id')]
+                                        if not cartela.get('comprador_id')]
                 
                 if len(cartelas_disponiveis) < quantidade:
                     messagebox.showerror("Erro", 
-                                        f"❌ Não há cartelas suficientes!\n"
-                                        f"Disponíveis: {len(cartelas_disponiveis)}\n"
-                                        f"Solicitadas: {quantidade}")
+                                         f"❌ Não há cartelas suficientes!\n"
+                                         f"Disponíveis: {len(cartelas_disponiveis)}\n"
+                                         f"Solicitadas: {quantidade}")
                     return
                 
                 cartelas_atribuidas = sorted(cartelas_disponiveis, key=int)[:quantidade]
@@ -1147,8 +1239,9 @@ class BingoSystem:
             log_message("ERROR", f"Erro ao cadastrar comprador: {str(e)}")
             messagebox.showerror("Erro ao cadastrar comprador", f"Erro: {str(e)}")
 
+    
     def limpar_campos(self):
-        """Limpa todos os campos do formulário (Corrigido: Removeu o messagebox interno)"""
+        # ... (Mantido)
         if not hasattr(self, 'entries'): return
         
         try:
@@ -1166,7 +1259,7 @@ class BingoSystem:
             pass
 
     def atualizar_lista_compradores(self):
-        # 🛡️ Proteção contra invalid command name
+        # ... (Mantido)
         if not hasattr(self, 'compradores_text') or not self.compradores_text.winfo_exists(): 
             return
         
@@ -1190,8 +1283,10 @@ class BingoSystem:
                      f"{len(comprador['cartelas'])} ({cartelas_str[:50]}...)\n")
             self.compradores_text.insert("end", linha)
 
-    # --- MÉTODO DE DESVINCULAÇÃO DE CARTELA ---
+    # --- MÉTODO DE DESVINCULAÇÃO DE CARTELA (Mantido) ---
+    
     def desvincular_cartela(self):
+        # ... (Mantido)
         """Desvincula uma cartela específica do comprador atribuído, tornando-a livre."""
         if not self.cartelas:
             messagebox.showwarning("Atenção", "⚠️ Nenhuma cartela gerada!")
@@ -1245,14 +1340,16 @@ class BingoSystem:
             except Exception as e:
                 log_message("ERROR", f"Falha ao desvincular cartela {cartela_id}: {e}")
                 messagebox.showerror("Erro de Desvinculação", f"Falha ao desvincular cartela: {e}")
-                # --- Métodos de Sorteio (Vencedor Automático e Visibilidade) ---
+
+    # --- Métodos de Sorteio (MODIFICADOS) ---
     
     def sortear_numero(self):
+        # ... (Mantido, com uso da variável de instância self.numero_maximo)
         if not self.cartelas_geradas:
             messagebox.showwarning("Atenção", "⚠️ Gere as cartelas primeiro!")
             return
 
-        numeros_disponiveis = [n for n in range(1, NUMERO_MAXIMO + 1) if n not in self.numeros_sorteados]
+        numeros_disponiveis = [n for n in range(1, self.numero_maximo + 1) if n not in self.numeros_sorteados] # [MODIFICADO]
         
         if not numeros_disponiveis:
             log_message("WARNING", "Tentativa de sorteio: todos os números já foram sorteados.")
@@ -1263,6 +1360,7 @@ class BingoSystem:
         self._processar_sorteio(numero_sorteado)
         
     def inserir_numero_manual(self):
+        # ... (Mantido, com uso da variável de instância self.numero_maximo)
         if not self.cartelas_geradas:
             messagebox.showwarning("Atenção", "⚠️ Gere as cartelas primeiro!")
             return
@@ -1275,8 +1373,8 @@ class BingoSystem:
 
             numero = int(numero_text)
             
-            if not 1 <= numero <= NUMERO_MAXIMO:
-                messagebox.showwarning("Atenção", f"O número deve estar entre 1 e {NUMERO_MAXIMO}.")
+            if not 1 <= numero <= self.numero_maximo: # [MODIFICADO]
+                messagebox.showwarning("Atenção", f"O número deve estar entre 1 e {self.numero_maximo}.")
                 return
             
             if numero in self.numeros_sorteados:
@@ -1290,6 +1388,7 @@ class BingoSystem:
             messagebox.showwarning("Atenção", "Insira um número válido.")
             
     def _processar_sorteio(self, numero_sorteado):
+        # ... (Mantido)
         self.numeros_sorteados.add(numero_sorteado)
         self.ultimo_numero_sorteado = numero_sorteado
         
@@ -1320,6 +1419,7 @@ class BingoSystem:
             self._verificar_vencedor_automatico()
 
     def _verificar_vencedor_automatico(self):
+        # ... (Mantido)
         vencedores = [cid for cid, cartela in self.cartelas.items() if cartela['acertos'] == 25]
         
         if vencedores:
@@ -1327,6 +1427,7 @@ class BingoSystem:
             self.root.after(100, lambda: self.display_vencedor(vencedores[0], vencedores))
 
     def verificar_vencedor(self):
+        # ... (Mantido)
         if not self.cartelas_geradas:
             messagebox.showwarning("Atenção", "⚠️ Gere as cartelas primeiro!")
             return
@@ -1339,6 +1440,7 @@ class BingoSystem:
             messagebox.showinfo("Resultado", "Ainda não há vencedores com 25 acertos.")
 
     def display_vencedor(self, cartela_id, todos_vencedores):
+        # ... (Mantido)
         vencedor_window = ctk.CTkToplevel(self.root)
         vencedor_window.title("🎉 VENCEDOR(A) ENCONTRADO(A) 🎉")
         vencedor_window.geometry("500x350")
@@ -1379,6 +1481,7 @@ class BingoSystem:
         ctk.CTkButton(vencedor_window, text="FECHAR", command=vencedor_window.destroy).pack(pady=15)
 
     def reiniciar_sorteio(self):
+        # ... (Mantido)
         """Reinicia o sorteio atual, zerando acertos e números sorteados"""
         if not self.cartelas_geradas:
             messagebox.showwarning("Atenção", "⚠️ Gere as cartelas primeiro!")
@@ -1403,6 +1506,7 @@ class BingoSystem:
             messagebox.showinfo("Sucesso", "Sorteio reiniciado com sucesso!")
 
     def atualizar_display_numero(self):
+        # ... (Mantido)
         if hasattr(self, 'numero_display'):
             if self.ultimo_numero_sorteado is not None:
                 self.numero_display.configure(text=str(self.ultimo_numero_sorteado))
@@ -1410,6 +1514,7 @@ class BingoSystem:
                 self.numero_display.configure(text="--")
             
     def atualizar_historico(self):
+        # ... (Mantido)
         if not hasattr(self, 'historico_container_frame') or not self.historico_container_frame.winfo_exists(): return
         
         for widget in self.historico_container_frame.winfo_children():
@@ -1433,9 +1538,10 @@ class BingoSystem:
             num_label.pack(side="left", padx=2, pady=5)
 
 
-    # --- Métodos de Exportação (PDF) ---
+    # --- Métodos de Exportação (PDF - Mantidos) ---
 
     def exportar_pdf(self):
+        # ... (Mantido)
         """Exporta as cartelas para PDF para Gráfica (Sem marcações e sem BINGO)"""
         if not self.cartelas:
             messagebox.showwarning("Atenção", "⚠️ Gere as cartelas primeiro!")
@@ -1476,18 +1582,20 @@ class BingoSystem:
                             y_offset = height - 150 - row * 200
                             
                             self._desenhar_cartela_grafica(c, cartela_id, cartela_data, x_offset, y_offset)
-                            
+                        
                             cartelas_processadas += 1
                             progress = cartelas_processadas / total_cartelas
-                            self.root.after(0, lambda p=progress: loading.update_progress(p, f"Exportando cartela {cartelas_processadas}/{total_cartelas}..."))
+                            self.root.after(0, lambda p=progress: 
+                                            loading.update_progress(p, f"Exportando cartela {cartelas_processadas}/{total_cartelas}..."))
                         
                         c.save()
                         
-                        self.root.after(0, lambda: [
-                            loading.close(),
-                            log_message("SUCCESS", f"PDF para gráfica exportado com sucesso: {filename}"),
-                            messagebox.showinfo("Sucesso", f"✅ PDF para gráfica exportado com sucesso!\n📁 {filename}")
-                        ])
+                        self.root.after(0, 
+                                        lambda: [
+                                            loading.close(),
+                                            log_message("SUCCESS", f"PDF para gráfica exportado com sucesso: {filename}"),
+                                            messagebox.showinfo("Sucesso", f"✅ PDF para gráfica exportado com sucesso!\n📁 {filename}")
+                                        ])
                         
                     except Exception as e:
                         log_message("ERROR", f"Erro fatal ao exportar PDF: {str(e)}")
@@ -1503,6 +1611,7 @@ class BingoSystem:
             messagebox.showerror("Erro", f"❌ Erro ao exportar PDF: {str(e)}")
 
     def _desenhar_cartela_grafica(self, c, cartela_id, cartela_data, x, y):
+        # ... (Mantido)
         """Desenha a cartela no PDF *sem BINGO e sem marcações*"""
         c.setFont("Helvetica-Bold", 12)
         c.drawString(x, y, f"Cartela #{cartela_id.zfill(3)}")
@@ -1526,9 +1635,10 @@ class BingoSystem:
                 c.setFillColorRGB(0, 0, 0) # Cor preta garantida
                 c.drawCentredString(cell_x + cell_size/2, cell_y + cell_size/2 - 3, str(numero))
 
-    # --- Métodos de Exportação (Excel) ---
+    # --- Métodos de Exportação (Excel - Mantidos) ---
 
     def exportar_excel(self):
+        # ... (Mantido)
         if not self.cartelas:
             messagebox.showwarning("Atenção", "⚠️ Gere as cartelas primeiro!")
             return
@@ -1580,10 +1690,10 @@ class BingoSystem:
                                         comprador['celular'], comprador['vendedor'], 
                                         cartelas_str, comprador['data_cadastro']
                                     ])
-                                
+                            
                                 df_compradores = pd.DataFrame(compradores_data, 
-                                                                columns=['ID', 'Nome', 'Endereço', 'Celular', 
-                                                                         'Vendedor', 'Cartelas', 'Data Cadastro'])
+                                                              columns=['ID', 'Nome', 'Endereço', 'Celular', 
+                                                                       'Vendedor', 'Cartelas', 'Data Cadastro'])
                                 df_compradores.to_excel(writer, sheet_name='Compradores', index=False)
                             
                             sorteio_data = [
@@ -1603,7 +1713,7 @@ class BingoSystem:
                             log_message("SUCCESS", f"Excel exportado com sucesso: {filename}"),
                             messagebox.showinfo("Sucesso", f"✅ Excel exportado com sucesso!\n📁 {filename}")
                         ])
-                        
+                    
                     except Exception as e:
                         log_message("ERROR", f"Erro fatal ao exportar Excel: {str(e)}")
                         self.root.after(0, lambda: [
@@ -1617,9 +1727,10 @@ class BingoSystem:
             log_message("ERROR", f"Erro no diálogo de exportação de Excel: {str(e)}")
             messagebox.showerror("Erro", f"❌ Erro ao exportar Excel: {str(e)}")
 
-    # --- Métodos de Cartelas (Visualizar com Busca) ---
+    # --- Métodos de Cartelas (Visualizar com Busca - Mantidos) ---
 
     def visualizar_cartela(self):
+        # ... (Mantido)
         """Visualiza uma cartela específica (COM busca por ID/Enter e dropdown)"""
         if not self.cartelas:
             messagebox.showwarning("Atenção", "⚠️ Nenhuma cartela gerada!")
@@ -1641,7 +1752,7 @@ class BingoSystem:
         entry_var = tk.StringVar(value=cartela_ids[0])
         entry_cartela = CTkEntry(search_frame, textvariable=entry_var, width=80)
         entry_cartela.pack(side="left", padx=5)
-        
+
         CTkLabel(search_frame, text="ou Rolar:", font=("Arial", 12)).pack(side="left", padx=5)
         cartela_var_combo = ctk.StringVar(value=cartela_ids[0])
         cartela_combo = ctk.CTkComboBox(search_frame, values=cartela_ids, variable=cartela_var_combo, width=100)
@@ -1685,7 +1796,7 @@ class BingoSystem:
                     cell_color = "#FF4444" if foi_sorteado else "#2B2B2B"
                     
                     cell = CTkFrame(row_frame, width=40, height=40, 
-                                     fg_color=cell_color)
+                                    fg_color=cell_color)
                     cell.pack(side="left", padx=2, pady=2)
                     cell.pack_propagate(False)
                     
@@ -1723,9 +1834,10 @@ class BingoSystem:
         
         mostrar_cartela(cartela_ids[0])
 
-    # --- Métodos de Concurso (Limpar Tudo) ---
+    # --- Métodos de Concurso (Limpar Tudo - Mantidos) ---
 
     def limpar_tudo_definitivo(self):
+        # ... (Mantido)
         """Reseta completamente o programa, excluindo todos os dados salvos e concursos."""
         log_message("WARNING", "Iniciando processo de RESET TOTAL.")
         if messagebox.askyesno("⚠️ RESETAR O SISTEMA", 
@@ -1773,13 +1885,14 @@ class BingoSystem:
                 log_message("FATAL", f"Falha ao resetar completamente: {e}")
                 messagebox.showerror("Erro de Reset", f"Falha ao resetar completamente: {e}")
 
-    # --- Métodos de Concurso e Relatórios (Mantidos) ---
+    # --- Métodos de Concurso (Mantidos) ---
     
     def atualizar_lista_concursos(self):
-        # 🛡️ Proteção contra invalid command name
+        # ... (Mantido)
         if not hasattr(self, 'concursos_list') or not self.concursos_list.winfo_exists(): return
         
         self.concursos_list.delete("1.0", "end")
+        
         if self.concursos:
             for nome, meta in self.concursos.items():
                 status_atual = " (ATUAL)" if nome == self.concurso_atual else ""
@@ -1794,6 +1907,7 @@ class BingoSystem:
             self.concursos_list.insert("end", "Nenhum concurso salvo.")
 
     def novo_concurso_dialog(self):
+        # ... (Mantido, com reset da nova variável)
         if messagebox.askyesno("Novo Concurso", 
                                "Deseja salvar o concurso atual antes de criar um novo?"):
             if not self.salvar_concurso_atual():
@@ -1811,6 +1925,9 @@ class BingoSystem:
         self.ultimo_numero_sorteado = None
         self.cartelas_geradas = False 
         self.cartelas_geradas_uma_vez = False # [MODIFICADO] Zera a flag para permitir nova geração
+        # Reseta as configurações para o default
+        self.numero_maximo = DEFAULT_NUMERO_MAXIMO
+        self.total_cartelas = DEFAULT_TOTAL_CARTELAS
         self.save_data()
         self.atualizar_status()
         self.atualizar_lista_concursos()
@@ -1819,6 +1936,7 @@ class BingoSystem:
         messagebox.showinfo("Sucesso", f"Concurso '{nome_novo}' iniciado. Gere as novas cartelas.")
     
     def salvar_concurso_atual(self):
+        # ... (Mantido)
         nome_salvar = simpledialog.askstring("Salvar Concurso", "Nome do Concurso para salvar:", initialvalue=self.concurso_atual)
         if not nome_salvar: return False
 
@@ -1829,6 +1947,12 @@ class BingoSystem:
             dados = {
                 'cartelas': self.cartelas,
                 'compradores': self.compradores,
+                # Salva as configurações atuais de geração [ADICIONADO]
+                'config_geracao': {
+                    'numero_maximo': self.numero_maximo,
+                    'total_cartelas': self.total_cartelas,
+                    'cartelas_geradas_uma_vez': self.cartelas_geradas_uma_vez
+                },
                 'sorteio': {
                     'numeros_sorteados': list(self.numeros_sorteados),
                     'cartela_vencedora': vencedor_salvar, 
@@ -1860,6 +1984,7 @@ class BingoSystem:
             return False
 
     def carregar_concurso_dialog(self):
+        # ... (Mantido)
         if not self.concursos:
             messagebox.showwarning("Atenção", "Nenhum concurso salvo para carregar.")
             return
@@ -1884,6 +2009,7 @@ class BingoSystem:
         CTkButton(janela, text="📂 Carregar", command=carregar).pack(pady=10)
 
     def _carregar_concurso(self, nome):
+        # ... (Mantido, com carregamento das novas variáveis)
         if nome == self.concurso_atual:
             messagebox.showinfo("Info", f"O concurso '{nome}' já é o concurso atual.")
             return
@@ -1902,15 +2028,20 @@ class BingoSystem:
             self.cartelas = dados.get('cartelas', {})
             self.compradores = dados.get('compradores', {})
             sorteio_data = dados.get('sorteio', {})
+            config_data = dados.get('config_geracao', {}) # [ADICIONADO]
             
             self.numeros_sorteados = set(sorteio_data.get('numeros_sorteados', []))
             self.cartela_vencedora = sorteio_data.get('cartela_vencedora')
             self.historico_sorteios = sorteio_data.get('historico_sorteios', [])
             self.ultimo_numero_sorteado = sorteio_data.get('ultimo_numero_sorteado')
+            
+            # Carrega as configurações de geração, senão usa o default
+            self.numero_maximo = config_data.get('numero_maximo', DEFAULT_NUMERO_MAXIMO) # [ADICIONADO]
+            self.total_cartelas = config_data.get('total_cartelas', DEFAULT_TOTAL_CARTELAS) # [ADICIONADO]
+            self.cartelas_geradas_uma_vez = config_data.get('cartelas_geradas_uma_vez', len(self.cartelas) > 0) # [ADICIONADO]
+
             self.concurso_atual = nome
             self.cartelas_geradas = len(self.cartelas) > 0 
-            self.cartelas_geradas_uma_vez = self.cartelas_geradas # [ADICIONADO] Se há cartelas, a geração já ocorreu.
-            
             self.save_data()
             self.atualizar_status()
             
@@ -1934,6 +2065,7 @@ class BingoSystem:
             messagebox.showerror("Erro", f"Erro ao carregar concurso: {e}")
 
     def excluir_concurso_dialog(self):
+        # ... (Mantido)
         if not self.concursos:
             messagebox.showwarning("Atenção", "Nenhum concurso salvo para excluir.")
             return
@@ -1952,7 +2084,7 @@ class BingoSystem:
         concurso_var = ctk.StringVar(value=concursos_list[0])
         concurso_combo = ctk.CTkComboBox(janela, values=concursos_list, variable=concurso_var)
         concurso_combo.pack(pady=5)
-        
+       
         def excluir():
             nome = concurso_var.get()
             if messagebox.askyesno("Confirmar Exclusão", 
@@ -1963,6 +2095,7 @@ class BingoSystem:
         CTkButton(janela, text="🗑️ Excluir", command=excluir, fg_color="#F44336").pack(pady=10)
 
     def _excluir_concurso(self, nome):
+        # ... (Mantido)
         try:
             if nome in self.concursos:
                 caminho_arquivo = f'concursos/{nome}.json'
@@ -1980,9 +2113,10 @@ class BingoSystem:
             log_message("ERROR", f"Erro ao excluir concurso '{nome}': {e}")
             messagebox.showerror("Erro", f"Erro ao excluir concurso: {e}")
 
-    # --- Métodos de Backup (NOVAS FUNCIONALIDADES) ---
+    # --- Métodos de Backup (Mantidos) ---
 
     def criar_backup(self):
+        # ... (Mantido, com inclusão das novas variáveis)
         """Cria um arquivo de backup completo (.json) em um local escolhido pelo usuário."""
         try:
             # Consolida todos os dados em um único objeto JSON
@@ -1991,7 +2125,9 @@ class BingoSystem:
                     'concurso_atual': self.concurso_atual,
                     'versao_sistema': VERSAO_SISTEMA,
                     'data_backup': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    'cartelas_geradas_uma_vez': self.cartelas_geradas_uma_vez
+                    'cartelas_geradas_uma_vez': self.cartelas_geradas_uma_vez,
+                    'numero_maximo': self.numero_maximo, # [ADICIONADO]
+                    'total_cartelas': self.total_cartelas # [ADICIONADO]
                 },
                 'cartelas': self.cartelas,
                 'compradores': self.compradores,
@@ -2024,6 +2160,7 @@ class BingoSystem:
             messagebox.showerror("Erro de Backup", f"❌ Falha ao criar backup: {e}")
 
     def restaurar_backup(self):
+        # ... (Mantido, com carregamento das novas variáveis)
         """Carrega dados de um arquivo de backup, sobrescrevendo o concurso atual."""
         if self.cartelas and not messagebox.askyesno("Confirmar Restauração", 
                                                      f"⚠️ A restauração irá **substituir todos os dados do concurso atual** ('{self.concurso_atual}')!\n"
@@ -2057,7 +2194,11 @@ class BingoSystem:
                 metadata = dados.get('metadata', {})
                 self.concurso_atual = metadata.get('concurso_atual', 'Restaurado')
                 self.cartelas_geradas = len(self.cartelas) > 0
-                self.cartelas_geradas_uma_vez = metadata.get('cartelas_geradas_uma_vez', self.cartelas_geradas)
+                
+                # Carrega as configurações de geração
+                self.cartelas_geradas_uma_vez = metadata.get('cartelas_geradas_uma_vez', self.cartelas_geradas) # [ADICIONADO]
+                self.numero_maximo = metadata.get('numero_maximo', DEFAULT_NUMERO_MAXIMO) # [ADICIONADO]
+                self.total_cartelas = metadata.get('total_cartelas', DEFAULT_TOTAL_CARTELAS) # [ADICIONADO]
 
                 # Salva o novo estado nos arquivos de dados
                 self.save_data() 
@@ -2086,8 +2227,9 @@ class BingoSystem:
 
 
     # --- Métodos de Relatórios (Mantidos) ---
-            
+          
     def mostrar_top20_no_sorteio(self):
+        # ... (Mantido)
         if not hasattr(self, 'top20_container_frame') or not self.top20_container_frame.winfo_exists(): return
         
         for widget in self.top20_container_frame.winfo_children():
@@ -2120,6 +2262,7 @@ class BingoSystem:
             
             
     def mostrar_top20(self):
+        # ... (Mantido)
         if not self.cartelas:
             messagebox.showwarning("Atenção", "⚠️ Nenhuma cartela gerada!")
             return
@@ -2145,12 +2288,13 @@ class BingoSystem:
             self.relatorios_text.insert("end", linha)
 
     def mostrar_vencedor(self):
-        
+        # ... (Mantido)
         vencedor_info = "Aguardando Sorteio"
         
         # Alterado para exibir o vencedor real (ou None)
         if self.cartela_vencedora:
             cartela = self.cartelas.get(self.cartela_vencedora)
+            
             if not cartela:
                 self.relatorios_text.delete("1.0", "end")
                 self.relatorios_text.insert("end", "❌ Cartela vencedora registrada não encontrada! (Dados inconsistentes)")
@@ -2177,6 +2321,7 @@ class BingoSystem:
             self.relatorios_text.insert("end", "⚠️ Cartela vencedora ainda não definida. Continue o sorteio ou verifique o vencedor.")
             
     def mostrar_estatisticas(self):
+        # ... (Mantido, com uso da variável de instância self.numero_maximo)
         self.relatorios_text.delete("1.0", "end")
         
         self.relatorios_text.insert("end", "📈 ESTATÍSTICAS COMPLETAS DO BINGO\n\n")
@@ -2231,12 +2376,13 @@ class BingoSystem:
         self.relatorios_text.insert("end", "\n🎲 NÚMEROS SORTEADOS:\n")
         if self.numeros_sorteados:
             numeros_str = ', '.join(map(str, sorted(self.numeros_sorteados)))
-            self.relatorios_text.insert("end", f"Total: {len(self.numeros_sorteados)}/{NUMERO_MAXIMO}\n")
+            self.relatorios_text.insert("end", f"Total: {len(self.numeros_sorteados)}/{self.numero_maximo}\n") # [MODIFICADO]
             self.relatorios_text.insert("end", numeros_str + "\n")
         else:
             self.relatorios_text.insert("end", "Nenhum número sorteado.\n")
             
     def listar_compradores(self):
+        # ... (Mantido)
         self.relatorios_text.delete("1.0", "end")
         self.relatorios_text.insert("end", "👥 LISTA COMPLETA DE COMPRADORES\n\n")
         
@@ -2254,6 +2400,7 @@ class BingoSystem:
             self.relatorios_text.insert("end", "---------------------------------------\n")
             
     def mostrar_cartelas_comprador(self):
+        # ... (Mantido)
         comprador_id = simpledialog.askstring("Buscar Comprador", "Digite o ID do Comprador:")
         if not comprador_id: return
         
@@ -2271,12 +2418,12 @@ class BingoSystem:
             if cartela:
                 numeros_str = ', '.join(map(str, cartela['numeros']))
                 self.relatorios_text.insert("end", 
-                    f"Cartela {cartela_id.zfill(3)} (Acertos: {cartela['acertos']}):\n"
-                    f"  {numeros_str}\n")
+                                   f"Cartela {cartela_id.zfill(3)} (Acertos: {cartela['acertos']}):\n"
+                                   f"  {numeros_str}\n")
             else:
                 self.relatorios_text.insert("end", f"Cartela {cartela_id} (DADOS PERDIDOS)\n")
 
-    # --- Execução Principal ---
+    # --- Execução Principal (Mantida) ---
     def run(self):
         try:
             self.root.mainloop()
@@ -2287,7 +2434,7 @@ class BingoSystem:
             self.save_data()
             log_message("INFO", "Aplicação encerrada.")
 
-# --- Bloco de Inicialização ---
+# --- Bloco de Inicialização (Mantido) ---
 if __name__ == "__main__":
     try:
         app = BingoSystem()
@@ -2295,3 +2442,4 @@ if __name__ == "__main__":
     except Exception as e:
         log_message("FATAL", f"Falha ao iniciar o sistema: {str(e)}")
         messagebox.showerror("Erro", f"Falha ao iniciar o sistema: {str(e)}")
+
