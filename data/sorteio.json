@@ -3,6 +3,7 @@
   "cartela_vencedora": null,
   "historico_sorteios": [],
   "ultimo_numero_sorteado": null,
-  "sorteio_num_atual": 1,
-  "historico_sorteios_detalhado": {}
+  "historico_sessoes_sorteio": [],
+  "draw_count": 1,
+  "current_draw_name": "Sorteio 1"
 }
