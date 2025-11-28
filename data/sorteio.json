@@ -1,0 +1,43 @@
+{
+  "numeros_sorteados": [
+    72,
+    73,
+    10,
+    13,
+    18,
+    19,
+    23
+  ],
+  "cartela_vencedora": null,
+  "historico_sorteios": [
+    {
+      "numero": 13,
+      "hora": "15:33:32"
+    },
+    {
+      "numero": 10,
+      "hora": "15:33:33"
+    },
+    {
+      "numero": 19,
+      "hora": "15:33:33"
+    },
+    {
+      "numero": 73,
+      "hora": "15:33:34"
+    },
+    {
+      "numero": 18,
+      "hora": "15:33:35"
+    },
+    {
+      "numero": 72,
+      "hora": "15:33:35"
+    },
+    {
+      "numero": 23,
+      "hora": "15:33:36"
+    }
+  ],
+  "ultimo_numero_sorteado": 23
+}

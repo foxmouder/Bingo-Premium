@@ -1,0 +1,23 @@
+# Ambiente Virtual
+venv/
+.venv/
+
+# Pastas e Arquivos de Build/Compilação (PyInstaller)
+# Estes são os arquivos grandes que causaram a rejeição do push:
+build/
+dist/
+*.spec
+
+# Logs e Cache de Python
+__pycache__/
+*.pyc
+*.log
+.mypy_cache/
+.pytest_cache/
+
+# Executáveis (Binários)
+*.exe
+*.pkg
+*.app
+# Binários Unix/Linux (Se o nome for fixo como o seu)
+BingoSystem
