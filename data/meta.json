@@ -1,5 +1,3 @@
 {
-  "cartelas_geradas_uma_vez": true,
-  "numero_maximo": 45,
-  "total_cartelas": 20
+  "cartelas_geradas_uma_vez": false
 }

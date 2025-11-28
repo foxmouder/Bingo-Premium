@@ -2,5 +2,7 @@
   "numeros_sorteados": [],
   "cartela_vencedora": null,
   "historico_sorteios": [],
-  "ultimo_numero_sorteado": null
+  "ultimo_numero_sorteado": null,
+  "sorteio_num_atual": 1,
+  "historico_sorteios_detalhado": {}
 }
